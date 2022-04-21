@@ -22,7 +22,7 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(_args: c_uint, _argp: *const c_char) -> isize {
+pub extern "C" fn main(_argc: c_int, _argv: *const *const c_char) -> c_int {
     let _ = unsafe { sceKernelDelayThread(10_000_000) };
     let _ = unsafe { sceKernelExitProcess(0) };
     loop {}
