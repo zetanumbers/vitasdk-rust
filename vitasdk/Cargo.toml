@@ -6,6 +6,11 @@ edition = "2021"
 [build-dependencies]
 bindgen = "0.59.2"
 camino = "1.0.7"
-proc-macro2 = { version = "1.0.38", default-features = false }
+color-eyre = "0.6.1"
+env_logger = "0.9.0"
+log = "0.4.17"
+proc-macro2 = { version = "1.0.38", default-features = false, features = ["span-locations"] }
 quote = { version = "1.0.18", default-features = false }
-syn = { version = "1.0.93", default-features = false, features = ["parsing", "full", "printing", "visit-mut"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_yaml = "0.8.24"
+syn = { version = "1.0.93", default-features = false, features = ["parsing", "full", "printing", "visit-mut", "extra-traits"] }
