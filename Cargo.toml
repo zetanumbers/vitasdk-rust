@@ -3,6 +3,9 @@ name = "rust-psvita-sample"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+vitasdk = { version = "0.2.125", path = "vitasdk" }
+
+[workspace]
+members = ["vitasdk"]
+resolver = "2"

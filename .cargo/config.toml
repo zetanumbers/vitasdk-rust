@@ -2,4 +2,4 @@
 target = "vitasdk.json"
 
 [unstable]
-build-std = ["core", "test"]
+build-std = ["core"]
