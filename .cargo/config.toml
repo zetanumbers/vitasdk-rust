@@ -1,5 +1,5 @@
 [build]
-target = "vitasdk.json"
+target = "arm-vita-eabi.json"
 
 [unstable]
 build-std = ["core"]
