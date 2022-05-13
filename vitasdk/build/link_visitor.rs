@@ -18,6 +18,8 @@ pub struct Link {
     variable: HashMap<String, Rc<str>>,
     source_file: PathBuf,
     link_path_quote: syn::Path,
+    pub undefined_functions: Vec<String>,
+    pub undefined_variables: Vec<String>,
 }
 
 impl Link {
@@ -27,6 +29,8 @@ impl Link {
             variable: HashMap::new(),
             link_path_quote: syn::parse_quote!(link),
             source_file,
+            undefined_functions: Vec::new(),
+            undefined_variables: Vec::new(),
         };
 
         for version_dir in db.read_dir()? {
@@ -101,7 +105,7 @@ impl VisitMut for Link {
                     write!(symbol, "{}", item.sig.ident).unwrap();
                     let candidate = match self.function.get(&symbol) {
                         None => {
-                            log::debug!("Found undefined extern function, assuming it's from libc: {symbol}");
+                            self.undefined_functions.push(symbol);
                             return;
                         }
                         Some(c) => c,
@@ -114,7 +118,7 @@ impl VisitMut for Link {
 
                     let candidate = match self.variable.get(&symbol) {
                         None => {
-                            log::debug!("Found undefined extern variable, assuming it's from libc: {symbol}");
+                            self.undefined_variables.push(symbol);
                             return;
                         }
                         Some(c) => c,
