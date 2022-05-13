@@ -1,6 +1,6 @@
 [package]
-name = "vitasdk"
-version = "0.2.125"
+name = "vitasdk-sys"
+version = "0.0.0"
 edition = "2021"
 
 [build-dependencies]

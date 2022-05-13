@@ -1,11 +1,3 @@
-[package]
-name = "rust-psvita-sample"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-vitasdk = { version = "0.2.125", path = "vitasdk" }
-
 [workspace]
-members = ["vitasdk"]
+members = ["vitasdk-sys", "samples/delay"]
 resolver = "2"
