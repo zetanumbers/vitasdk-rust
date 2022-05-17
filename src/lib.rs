@@ -1,20 +1,14 @@
 pub mod toolchain;
 
-use std::{
-    borrow::Cow,
-    env,
-    path::{Path, PathBuf},
-    process::Stdio,
-};
+use std::{env, path::PathBuf, process::Stdio};
 
 use eyre::{eyre, WrapErr};
 use once_cell::sync::Lazy;
 use tokio::io::{self, AsyncBufReadExt};
-use tracing::Instrument;
 
-const TARGET_SPEC_NAME: &str = "arm-vita-eabi.json";
+const TARGET_SPEC_NAME: &str = "arm-vita-eabi";
 
-const VITASDK: Lazy<PathBuf> = Lazy::new({
+static VITASDK: Lazy<PathBuf> = Lazy::new({
     #[tracing::instrument(parent = None)]
     fn get_vitasdk_root() -> PathBuf {
         let path =
@@ -28,28 +22,9 @@ const VITASDK: Lazy<PathBuf> = Lazy::new({
     get_vitasdk_root
 });
 
-const CARGO: Lazy<Cow<'static, Path>> = Lazy::new({
-    #[tracing::instrument(parent = None)]
-    fn get_cargo_bin() -> Cow<'static, Path> {
-        let path = env::var_os("CARGO").map_or(Cow::Borrowed(Path::new("cargo")), |bin| {
-            Cow::Owned(PathBuf::from(bin))
-        });
-        tracing::info!(?path);
-        path
-    }
-
-    get_cargo_bin
-});
-
 #[tracing::instrument]
 pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
     Lazy::force(&VITASDK);
-
-    let manifest_path =
-        get_arg(&args, "--manifest-path").wrap_err("Getting value of `--manifest-path`")?;
-    let target_spec_path = target_spec_path(manifest_path.as_deref())
-        .await
-        .wrap_err_with(|| format!("Searching for `{TARGET_SPEC_NAME}` target spec"))?;
 
     let mut build = tokio::process::Command::new("xargo");
     build
@@ -58,7 +33,7 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
             "--message-format=json-render-diagnostics",
             "--target",
         ])
-        .arg(target_spec_path)
+        .arg(TARGET_SPEC_NAME)
         .args(args)
         .stdout(Stdio::piped());
     let mut build = build
@@ -71,12 +46,13 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
     while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
         let message: cargo_metadata::Message =
             serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
-        match message {
-            cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
-                executable: Some(executable),
-                ..
-            }) => tasks.push(tokio::spawn(postprocess_elf(executable.into()))),
-            _ => (),
+
+        if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
+            executable: Some(executable),
+            ..
+        }) = message
+        {
+            tasks.push(tokio::spawn(postprocess_elf(executable.into())))
         }
     }
 
@@ -123,78 +99,6 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
         .await?;
 
     Ok(())
-}
-
-fn get_arg<'a>(args: &'a [String], name: &str) -> eyre::Result<Option<&'a str>> {
-    args.windows(2)
-        .find_map(|args| match args[0].strip_prefix(name) {
-            Some("") => Some(
-                args.get(1)
-                    .map(String::as_str)
-                    .ok_or_else(|| eyre!("Flag has no value")),
-            ),
-            Some(a) => a.strip_prefix('=').map(Ok),
-            None => None,
-        })
-        .transpose()
-}
-
-#[tracing::instrument]
-async fn target_spec_path(manifest_path: Option<&str>) -> eyre::Result<PathBuf> {
-    let mut command = tokio::process::Command::new(&**CARGO);
-    command
-        .args(&["locate-project", "--offline", "--message-format=plain"])
-        .stderr(Stdio::inherit())
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped());
-
-    if let Some(manifest_path) = manifest_path {
-        command.args(&["--manifest_path", &manifest_path]);
-    }
-
-    // Spawn in parallel to minimize latency
-    let pkg = tracing::info_span!("cargo-locate-project", workspace = false).in_scope(
-        || -> eyre::Result<_> {
-            tracing::debug!(?command);
-            let child = command.spawn()?;
-            Ok(target_spec_path_extract(child).in_current_span())
-        },
-    )?;
-    command.arg("--workspace");
-
-    let ws = tracing::info_span!("cargo-locate-project", workspace = true).in_scope(
-        || -> eyre::Result<_> {
-            tracing::debug!(?command);
-            let child = command.spawn()?;
-            Ok(target_spec_path_extract(child).in_current_span())
-        },
-    )?;
-
-    let mut path = pkg.await?;
-    if path.exists() {
-        return Ok(path);
-    }
-
-    path = ws.await?;
-    if path.exists() {
-        return Ok(path);
-    }
-
-    eyre::bail!("No `{TARGET_SPEC_NAME}` found in package's root nor in the workspace root. Perhaps this is not a vitasdk-rust project (create a new one using `cargo vitasdk new`).");
-}
-
-async fn target_spec_path_extract(child: tokio::process::Child) -> eyre::Result<PathBuf> {
-    let output = child
-        .wait_with_output()
-        .await
-        .wrap_err("Waiting until finish")?;
-    handle_exit_status(output.status)?;
-
-    let manifest =
-        Path::new(std::str::from_utf8(&output.stdout).wrap_err("Converting stdout into utf-8")?);
-
-    let target_spec = manifest.parent().unwrap().join(TARGET_SPEC_NAME);
-    Ok(target_spec)
 }
 
 fn handle_exit_status(exit_status: std::process::ExitStatus) -> eyre::Result<()> {

@@ -16,12 +16,12 @@ fn get_vitasdk_subpath(subpath: &Path) -> PathBuf {
     path
 }
 
-const VITA_ELF_CREATE: Lazy<PathBuf> =
+static VITA_ELF_CREATE: Lazy<PathBuf> =
     Lazy::new(|| get_vitasdk_subpath("bin/vita-elf-create".as_ref()));
-const VITA_MKSFOEX: Lazy<PathBuf> = Lazy::new(|| get_vitasdk_subpath("bin/vita-mksfoex".as_ref()));
-const VITA_MAKE_FSELF: Lazy<PathBuf> =
+static VITA_MKSFOEX: Lazy<PathBuf> = Lazy::new(|| get_vitasdk_subpath("bin/vita-mksfoex".as_ref()));
+static VITA_MAKE_FSELF: Lazy<PathBuf> =
     Lazy::new(|| get_vitasdk_subpath("bin/vita-make-fself".as_ref()));
-const VITA_PACK_VPK: Lazy<PathBuf> =
+static VITA_PACK_VPK: Lazy<PathBuf> =
     Lazy::new(|| get_vitasdk_subpath("bin/vita-pack-vpk".as_ref()));
 
 /// logging verbosity (more v is more verbose)
