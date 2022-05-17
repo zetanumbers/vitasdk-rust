@@ -15,7 +15,7 @@ static VITASDK: Lazy<PathBuf> = Lazy::new({
             PathBuf::from(env::var_os("VITASDK").expect(
                 "VITASDK environment variable isn't set, vitasdk isn't properly installed.",
             ));
-        tracing::info!(?path);
+        tracing::debug!(?path);
         path
     }
 
@@ -82,7 +82,7 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
 
     tokio::try_join!(
         async {
-            toolchain::VitaMksfoex::new(&title, &velf).run().await?;
+            toolchain::VitaMksfoex::new(&title, &sfo).run().await?;
             eyre::Result::<()>::Ok(())
         },
         async {
