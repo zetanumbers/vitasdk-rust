@@ -1,10 +1,17 @@
 pub mod toolchain;
 
-use std::{env, path::PathBuf, process::Stdio};
+use std::{
+    env,
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::SystemTime,
+};
 
 use eyre::{eyre, WrapErr};
+use futures::future;
 use once_cell::sync::Lazy;
 use tokio::io::{self, AsyncBufReadExt};
+use tracing::Instrument;
 
 const TARGET_SPEC_NAME: &str = "arm-vita-eabi";
 
@@ -36,23 +43,30 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
         .arg(TARGET_SPEC_NAME)
         .args(args)
         .stdout(Stdio::piped());
-    let mut build = build
-        .spawn()
-        .wrap_err_with(|| format!("Running `xargo build`: {build:?}"))?;
 
-    let mut lines = io::BufReader::new(build.stdout.take().unwrap()).lines();
     let mut tasks = Vec::new();
+    let parent_span = tracing::Span::current();
 
-    while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
-        let message: cargo_metadata::Message =
-            serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
+    {
+        let _entered = tracing::debug_span!("xargo-build", command = ?build).entered();
+        let mut build = build.spawn()?;
+        tracing::trace!("Spawned");
 
-        if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
-            executable: Some(executable),
-            ..
-        }) = message
-        {
-            tasks.push(tokio::spawn(postprocess_elf(executable.into())))
+        let mut lines = io::BufReader::new(build.stdout.take().unwrap()).lines();
+
+        while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
+            let message: cargo_metadata::Message =
+                serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
+
+            if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
+                executable: Some(executable),
+                ..
+            }) = message
+            {
+                tasks.push(tokio::spawn(
+                    postprocess_elf(executable.into()).instrument(parent_span.clone()),
+                ))
+            }
         }
     }
 
@@ -72,6 +86,49 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
     let eboot_bin = elf.with_extension("eboot-bin");
     let vpk = elf.with_extension("vpk");
 
+    #[tracing::instrument]
+    async fn is_cached(name: &str, inputs: &[&Path], output: &Path) -> eyre::Result<bool> {
+        async fn mtime(path: &Path) -> std::io::Result<Option<SystemTime>> {
+            tokio::fs::metadata(path)
+                .await
+                .and_then(|m| m.modified())
+                .map(Some)
+                .or_else(|e| match e.kind() {
+                    std::io::ErrorKind::NotFound => Ok(None),
+                    _ => Err(e),
+                })
+        }
+
+        let mtimes = match future::try_join_all(
+            std::iter::once(&output)
+                .chain(inputs)
+                .map(|path| mtime(*path)),
+        )
+        .await
+        {
+            // rerun every time on platforms without any mtime functionality
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::Unsupported) => Ok(vec![None]),
+            other => other,
+        }
+        .wrap_err("Aqiring file's last modification time")?;
+
+        let input_mtimes = &mtimes[1..];
+        let output_mtime = mtimes[0];
+
+        let is_cached = output_mtime
+            .map_or(Result::<_, usize>::Ok(false), |ot| {
+                input_mtimes
+                    .iter()
+                    .enumerate()
+                    .try_fold(true, |acc, (i, it)| Ok((*it).ok_or(i)? < ot && acc))
+            })
+            .map_err(|i| eyre!("Input file doesn't exist: {:?}", inputs[i]))?;
+
+        tracing::debug!(is_cached);
+
+        Ok(is_cached)
+    }
+
     // TODO: title
     let title = elf
         .file_stem()
@@ -82,21 +139,29 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
 
     tokio::try_join!(
         async {
-            toolchain::VitaMksfoex::new(&title, &sfo).run().await?;
+            if !is_cached("vita-mksfoex", &[], &sfo).await? {
+                toolchain::VitaMksfoex::new(&title, &sfo).run().await?;
+            }
             eyre::Result::<()>::Ok(())
         },
         async {
-            toolchain::VitaElfCreate::new(&elf, &velf).run().await?;
-            toolchain::VitaMakeFself::new(&velf, &eboot_bin)
-                .run()
-                .await?;
+            if !is_cached("vita-elf-create", &[&elf], &velf).await? {
+                toolchain::VitaElfCreate::new(&elf, &velf).run().await?;
+            }
+            if !is_cached("vita-make-fself", &[&velf], &eboot_bin).await? {
+                toolchain::VitaMakeFself::new(&velf, &eboot_bin)
+                    .run()
+                    .await?;
+            }
             Ok(())
         }
     )?;
 
-    toolchain::VitaPackVpk::new(&sfo, &eboot_bin, &vpk)
-        .run()
-        .await?;
+    if !is_cached("vita-pack-vpk", &[&sfo, &eboot_bin], &vpk).await? {
+        toolchain::VitaPackVpk::new(&sfo, &eboot_bin, &vpk)
+            .run()
+            .await?;
+    }
 
     Ok(())
 }
