@@ -11,6 +11,7 @@ use eyre::{eyre, WrapErr};
 use futures::future;
 use once_cell::sync::Lazy;
 use tokio::io::{self, AsyncBufReadExt};
+use tracing::Instrument;
 
 const TARGET_SPEC_NAME: &str = "arm-vita-eabi";
 
@@ -42,23 +43,30 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
         .arg(TARGET_SPEC_NAME)
         .args(args)
         .stdout(Stdio::piped());
-    let mut build = build
-        .spawn()
-        .wrap_err_with(|| format!("Running `xargo build`: {build:?}"))?;
 
-    let mut lines = io::BufReader::new(build.stdout.take().unwrap()).lines();
     let mut tasks = Vec::new();
+    let parent_span = tracing::Span::current();
 
-    while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
-        let message: cargo_metadata::Message =
-            serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
+    {
+        let _entered = tracing::debug_span!("xargo-build", command = ?build).entered();
+        let mut build = build.spawn()?;
+        tracing::trace!("Spawned");
 
-        if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
-            executable: Some(executable),
-            ..
-        }) = message
-        {
-            tasks.push(tokio::spawn(postprocess_elf(executable.into())))
+        let mut lines = io::BufReader::new(build.stdout.take().unwrap()).lines();
+
+        while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
+            let message: cargo_metadata::Message =
+                serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
+
+            if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
+                executable: Some(executable),
+                ..
+            }) = message
+            {
+                tasks.push(tokio::spawn(
+                    postprocess_elf(executable.into()).instrument(parent_span.clone()),
+                ))
+            }
         }
     }
 
@@ -107,7 +115,7 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
         let input_mtimes = &mtimes[1..];
         let output_mtime = mtimes[0];
 
-        let cached = output_mtime
+        let is_cached = output_mtime
             .map_or(Result::<_, usize>::Ok(false), |ot| {
                 input_mtimes
                     .iter()
@@ -116,7 +124,9 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
             })
             .map_err(|i| eyre!("Input file doesn't exist: {:?}", inputs[i]))?;
 
-        Ok(cached)
+        tracing::debug!(is_cached);
+
+        Ok(is_cached)
     }
 
     // TODO: title
@@ -129,16 +139,16 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
 
     tokio::try_join!(
         async {
-            if is_cached("vita-mksfoex", &[], &sfo).await? {
+            if !is_cached("vita-mksfoex", &[], &sfo).await? {
                 toolchain::VitaMksfoex::new(&title, &sfo).run().await?;
             }
             eyre::Result::<()>::Ok(())
         },
         async {
-            if is_cached("vita-elf-create", &[&elf], &velf).await? {
+            if !is_cached("vita-elf-create", &[&elf], &velf).await? {
                 toolchain::VitaElfCreate::new(&elf, &velf).run().await?;
             }
-            if is_cached("vita-make-fself", &[&velf], &eboot_bin).await? {
+            if !is_cached("vita-make-fself", &[&velf], &eboot_bin).await? {
                 toolchain::VitaMakeFself::new(&velf, &eboot_bin)
                     .run()
                     .await?;
@@ -147,7 +157,7 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
         }
     )?;
 
-    if is_cached("vita-pack-vpk", &[&sfo, &eboot_bin], &vpk).await? {
+    if !is_cached("vita-pack-vpk", &[&sfo, &eboot_bin], &vpk).await? {
         toolchain::VitaPackVpk::new(&sfo, &eboot_bin, &vpk)
             .run()
             .await?;
