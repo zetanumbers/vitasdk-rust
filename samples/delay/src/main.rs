@@ -7,8 +7,7 @@ pub extern "C" fn main(
     _argv: *const *const vitasdk_sys::c_char,
 ) -> vitasdk_sys::c_int {
     let _ = unsafe { vitasdk_sys::sceKernelDelayThread(10_000_000) };
-    let _ = unsafe { vitasdk_sys::sceKernelExitProcess(0) };
-    loop {}
+    0
 }
 
 #[panic_handler]

@@ -1,5 +1,0 @@
-[build]
-target = "arm-vita-eabi.json"
-
-[unstable]
-build-std = ["core"]
