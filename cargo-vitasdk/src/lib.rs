@@ -13,7 +13,7 @@ use once_cell::sync::Lazy;
 use tokio::io::{self, AsyncBufReadExt};
 use tracing::Instrument;
 
-const TARGET_SPEC_NAME: &str = "arm-vita-eabi";
+const TARGET_SPEC_NAME: &str = "armv7-sony-vita-newlibeabihf";
 
 static VITASDK: Lazy<PathBuf> = Lazy::new({
     #[tracing::instrument(parent = None)]
@@ -33,11 +33,14 @@ static VITASDK: Lazy<PathBuf> = Lazy::new({
 pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
     Lazy::force(&VITASDK);
 
-    let mut build = tokio::process::Command::new("xargo");
+    let cargo = env::var_os("CARGO");
+    let cargo = cargo.as_deref().unwrap_or_else(|| "cargo".as_ref());
+    let mut build = tokio::process::Command::new(cargo);
     build
-        .args(&[
+        .args([
             "build",
             "--message-format=json-render-diagnostics",
+            "-Zbuild-std=panic_abort,std",
             "--target",
         ])
         .arg(TARGET_SPEC_NAME)
@@ -48,7 +51,7 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
     let parent_span = tracing::Span::current();
 
     {
-        let _entered = tracing::debug_span!("xargo-build", command = ?build).entered();
+        let _entered = tracing::debug_span!("cargo-build", command = ?build).entered();
         let mut build = build.spawn()?;
         tracing::trace!("Spawned");
 
@@ -56,7 +59,7 @@ pub async fn build<'e>(args: &[String]) -> eyre::Result<()> {
 
         while let Some(line) = lines.next_line().await.wrap_err("Parsing stdout")? {
             let message: cargo_metadata::Message =
-                serde_json::from_str(&line).wrap_err("Parsing `xargo build`'s stdout")?;
+                serde_json::from_str(&line).wrap_err("Parsing `cargo build`'s stdout")?;
 
             if let cargo_metadata::Message::CompilerArtifact(cargo_metadata::Artifact {
                 executable: Some(executable),
@@ -102,7 +105,7 @@ pub async fn postprocess_elf<'e>(elf: PathBuf) -> eyre::Result<()> {
         let mtimes = match future::try_join_all(
             std::iter::once(&output)
                 .chain(inputs)
-                .map(|path| mtime(*path)),
+                .map(|path| mtime(path)),
         )
         .await
         {

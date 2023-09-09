@@ -80,7 +80,7 @@ impl<'a> VitaElfCreate<'a> {
         if let Some(v) = self.config_options {
             command.arg("-e").arg(v);
         }
-        command.args(&[self.input_elf, self.output_velf]);
+        command.args([self.input_elf, self.output_velf]);
 
         tracing::debug!(?command, "Running");
         let status = command.status().await?;

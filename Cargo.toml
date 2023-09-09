@@ -1,4 +1,3 @@
 [workspace]
-members = ["vitasdk-sys", "samples/delay"]
-exclude = ["cargo-vitasdk"]
+members = ["vitasdk-sys", "samples/delay", "cargo-vitasdk"]
 resolver = "2"
