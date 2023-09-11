@@ -5,12 +5,12 @@ edition = "2021"
 
 [build-dependencies]
 bindgen = { version = "0.59.2", default-features = false, features = ["logging", "clap", "runtime"] }
-camino = "1.0.7"
-color-eyre = "0.6.1"
-env_logger = "0.9.0"
-log = "0.4.17"
-proc-macro2 = { version = "1.0.38", default-features = false, features = ["span-locations"] }
-quote = { version = "1.0.18", default-features = false }
-serde = { version = "1.0.137", features = ["derive"] }
-serde_yaml = "0.8.24"
-syn = { version = "1.0.93", default-features = false, features = ["parsing", "full", "printing", "visit-mut", "extra-traits"] }
+camino = "1.1.6"
+color-eyre = "0.6.2"
+env_logger = "0.9.3"
+log = "0.4.20"
+proc-macro2 = { version = "1.0.66", default-features = false, features = ["span-locations"] }
+quote = { version = "1.0.33", default-features = false }
+serde = { version = "1.0.188", features = ["derive"] }
+serde_yaml = "0.8.26"
+syn = { version = "1.0.109", default-features = false, features = ["parsing", "full", "printing", "visit-mut", "extra-traits"] }
