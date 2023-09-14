@@ -135,7 +135,7 @@ impl VisitMut for Link {
         }
 
         if let Some(stub_lib_name) = stub_lib_name {
-            i.attrs.iter().find(|a| a.path == self.link_path_quote);
+            i.attrs.iter().find(|a| *a.path() == self.link_path_quote);
             i.attrs.push(syn::parse_quote! {
                 #[link(name = #stub_lib_name, kind = "static")]
             });

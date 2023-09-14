@@ -1,5 +1,10 @@
 #![no_std]
-#![allow(nonstandard_style)]
+#![allow(
+    nonstandard_style,
+    clippy::useless_transmute,
+    clippy::missing_safety_doc,
+    clippy::too_many_arguments
+)]
 
 mod ctypes {
     pub use ::core::ffi::c_void;

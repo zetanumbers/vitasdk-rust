@@ -1,7 +1,0 @@
-[package]
-name = "sample-delay"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-vitasdk-sys = { version = "0.0.0", path = "../../vitasdk-sys" }

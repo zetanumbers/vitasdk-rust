@@ -8,7 +8,7 @@ mod vita_headers_db;
 use std::{borrow::Cow, env, fs, path::PathBuf, process};
 
 use camino::{Utf8Path, Utf8PathBuf};
-use color_eyre::eyre::{self, eyre};
+use color_eyre::eyre::{self, Context};
 use quote::ToTokens;
 use syn::visit_mut::VisitMut;
 
@@ -84,7 +84,7 @@ fn main() -> eyre::Result<()> {
     let mut fmt_cmd = process::Command::new(
         env::var_os("CARGO").map_or_else(|| Cow::Borrowed("cargo".as_ref()), Cow::Owned),
     );
-    fmt_cmd.args(&["fmt", "--"]);
+    fmt_cmd.args(["fmt", "--"]);
     fmt_cmd.arg(bindings_output_path);
 
     log::info!("Running formatting command: {fmt_cmd:?}");
@@ -103,8 +103,10 @@ fn generate_preprocessed_bindings(include: &Utf8Path) -> eyre::Result<String> {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .use_core()
         .ctypes_prefix("crate::ctypes")
-        .rustfmt_bindings(false)
+        .generate_comments(false)
+        .prepend_enum_name(false)
+        .detect_include_paths(false)
         .generate()
-        .map_err(|()| eyre!("Bindgen failed"))?
+        .wrap_err("Bindgen failed")?
         .to_string())
 }
