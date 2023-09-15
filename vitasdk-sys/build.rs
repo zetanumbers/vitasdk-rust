@@ -65,7 +65,7 @@ fn main() -> eyre::Result<()> {
     let db = vita_headers_submodule.join("db");
 
     log::info!("Loading vita-headers metadata yaml files from \"{db}\"");
-    let mut link = Link::load(&db, bindings_output.into())?;
+    let mut link = Link::load(db.as_ref(), bindings_output.into())?;
     link.visit_file_mut(&mut bindings);
 
     if !link.undefined_functions.is_empty() {

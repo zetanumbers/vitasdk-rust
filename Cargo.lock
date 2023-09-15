@@ -903,6 +903,7 @@ dependencies = [
  "camino",
  "color-eyre",
  "env_logger",
+ "eyre",
  "log",
  "proc-macro2",
  "quote",

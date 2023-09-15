@@ -1,14 +1,11 @@
 use std::{
     collections::{hash_map, HashMap},
-    fs,
-    io::BufReader,
     path::{Path, PathBuf},
     rc::Rc,
 };
 
-use crate::vita_headers_db::{self, VitaImports};
-use camino::Utf8Path;
-use color_eyre::eyre;
+use crate::vita_headers_db::{stub_lib_name, VitaDb};
+use eyre::Context;
 use syn::{spanned::Spanned, visit_mut::VisitMut};
 
 pub struct Link {
@@ -22,7 +19,7 @@ pub struct Link {
 }
 
 impl Link {
-    pub fn load(db: &Utf8Path, source_file: PathBuf) -> eyre::Result<Self> {
+    pub fn load(db: &Path, source_file: PathBuf) -> eyre::Result<Self> {
         let mut link = Link {
             function: HashMap::new(),
             variable: HashMap::new(),
@@ -31,53 +28,47 @@ impl Link {
             undefined_variables: Vec::new(),
         };
 
-        for version_dir in db.read_dir()? {
-            for yml in version_dir?.path().read_dir()? {
-                let yml = yml?.path();
-                log::debug!("Loading: {}", yml.display());
-                let file = fs::File::open(yml)?;
-                let reader = BufReader::new(file);
-                let imports: VitaImports = serde_yaml::from_reader(reader)?;
-                let firmware = imports.firmware;
+        let db = VitaDb::load(db).wrap_err("Loading vita-header db")?;
 
-                for (mod_name, mod_data) in imports.modules {
-                    let postfix = vita_headers_db::postfix(&firmware);
-                    let stub_lib_name = Rc::from(format!("{mod_name}{postfix}_stub"));
+        for imports in db.files_by_firmware.into_values().flatten() {
+            let firmware = imports.firmware;
 
-                    for (_, lib_data) in mod_data.libraries {
-                        if lib_data.kernel {
-                            continue;
-                        }
+            for (mod_name, mod_data) in imports.modules {
+                let stub_lib_name = Rc::from(stub_lib_name(&mod_name, &firmware).to_string());
 
-                        for (function_name, _) in lib_data.function_nids.into_iter() {
-                            match link.function.entry(function_name) {
-                                hash_map::Entry::Occupied(entry) => {
-                                    eyre::bail!(
-                                        "`{}` extern function links both to `{}` and `{}`",
-                                        entry.key(),
-                                        entry.get(),
-                                        stub_lib_name
-                                    );
-                                }
-                                hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(Rc::clone(&stub_lib_name));
-                                }
+                for (_, lib_data) in mod_data.libraries {
+                    if lib_data.kernel {
+                        continue;
+                    }
+
+                    for (function_name, _) in lib_data.function_nids.into_iter() {
+                        match link.function.entry(function_name) {
+                            hash_map::Entry::Occupied(entry) => {
+                                eyre::bail!(
+                                    "`{}` extern function links both to `{}` and `{}`",
+                                    entry.key(),
+                                    entry.get(),
+                                    stub_lib_name
+                                );
+                            }
+                            hash_map::Entry::Vacant(entry) => {
+                                entry.insert(Rc::clone(&stub_lib_name));
                             }
                         }
+                    }
 
-                        for (variable_name, _) in lib_data.variable_nids.into_iter() {
-                            match link.variable.entry(variable_name) {
-                                hash_map::Entry::Occupied(entry) => {
-                                    eyre::bail!(
-                                        "`{}` extern variable links both to `{}` and `{}`",
-                                        entry.key(),
-                                        entry.get(),
-                                        stub_lib_name
-                                    );
-                                }
-                                hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(Rc::clone(&stub_lib_name));
-                                }
+                    for (variable_name, _) in lib_data.variable_nids.into_iter() {
+                        match link.variable.entry(variable_name) {
+                            hash_map::Entry::Occupied(entry) => {
+                                eyre::bail!(
+                                    "`{}` extern variable links both to `{}` and `{}`",
+                                    entry.key(),
+                                    entry.get(),
+                                    stub_lib_name
+                                );
+                            }
+                            hash_map::Entry::Vacant(entry) => {
+                                entry.insert(Rc::clone(&stub_lib_name));
                             }
                         }
                     }
