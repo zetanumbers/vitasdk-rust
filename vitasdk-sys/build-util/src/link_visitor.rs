@@ -8,6 +8,8 @@ use crate::vita_headers_db::{stub_lib_name, VitaDb};
 use eyre::Context;
 use syn::{spanned::Spanned, visit_mut::VisitMut};
 
+pub use syn;
+
 pub struct Link {
     /// link.function[function_name] = stub_library_name
     function: HashMap<String, Rc<str>>,
@@ -28,7 +30,12 @@ impl Link {
             undefined_variables: Vec::new(),
         };
 
-        let db = VitaDb::load(db).wrap_err("Loading vita-header db")?;
+        let mut db = VitaDb::load(db).wrap_err("Loading vita-header db")?;
+        db.remove_conflicting();
+        let missing_features = db.missing_features();
+        if !missing_features.is_empty() {
+            panic!("Missing features in vitasdk-sys `Cargo.toml`. Please run `cargo run -p build-util --bin missing_features` and paste outputed features into vitasdk-sys Cargo.toml")
+        }
 
         for imports in db.files_by_firmware.into_values().flatten() {
             let firmware = imports.firmware;

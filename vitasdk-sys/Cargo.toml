@@ -5,14 +5,15 @@ edition = "2021"
 
 [build-dependencies]
 bindgen = "0.68.1"
+build-util = { path = "build-util", features = ["link-visitor"] }
 camino = "1.1.6"
 color-eyre = "0.6.2"
 env_logger = "0.10.0"
 eyre = "0.6.8"
 log = "0.4.20"
-proc-macro2 = { version = "1.0.66", default-features = false, features = ["span-locations"] }
 quote = { version = "1.0.33", default-features = false }
 regex = { version = "1.9.5", default-features = false, features = ["std", "perf"] }
-serde = { version = "1.0.188", features = ["derive"] }
-serde_yaml = "0.9.25"
-syn = { version = "2.0.32", default-features = false, features = ["parsing", "full", "printing", "visit-mut", "extra-traits"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

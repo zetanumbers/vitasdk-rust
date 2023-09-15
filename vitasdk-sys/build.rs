@@ -1,19 +1,13 @@
-#![feature(exit_status_error)]
+use std::{env, fs, process};
 
-#[path = "build/link_visitor.rs"]
-mod link_visitor;
-#[path = "build/vita_headers_db.rs"]
-mod vita_headers_db;
-
-use std::{borrow::Cow, env, fs, process};
-
+use build_util::link_visitor::{
+    syn::{self, visit_mut::VisitMut},
+    Link,
+};
 use camino::{Utf8Path, Utf8PathBuf};
 use color_eyre::eyre::{self, Context};
 use quote::ToTokens;
 use regex::Regex;
-use syn::visit_mut::VisitMut;
-
-use crate::link_visitor::Link;
 
 fn main() -> eyre::Result<()> {
     color_eyre::install()?;
@@ -90,17 +84,18 @@ fn main() -> eyre::Result<()> {
     use std::io::Write;
     write!(bindings_output, "{bindings}")?;
 
-    let mut fmt_cmd = process::Command::new(
-        env::var_os("CARGO").map_or_else(|| Cow::Borrowed("cargo".as_ref()), Cow::Owned),
-    );
+    let cargo = env::var_os("CARGO");
+    let mut fmt_cmd = process::Command::new(cargo.as_deref().unwrap_or_else(|| "cargo".as_ref()));
     fmt_cmd.args(["fmt", "--"]);
     fmt_cmd.arg(bindings_output_path);
 
     log::info!("Running formatting command: {fmt_cmd:?}");
     let exit_status = fmt_cmd.status()?;
-
+    assert!(
+        exit_status.success(),
+        "Formatting command failed with status: {exit_status:?}"
+    );
     log::info!("Formatting command finished");
-    exit_status.exit_ok()?;
 
     Ok(())
 }
