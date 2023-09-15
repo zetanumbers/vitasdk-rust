@@ -1,4 +1,4 @@
-use std::{env, fs, process};
+use std::{env, fs, io, process};
 
 use build_util::link_visitor::{
     syn::{self, visit_mut::VisitMut},
@@ -35,12 +35,6 @@ fn main() -> eyre::Result<()> {
 
     let out_dir = Utf8PathBuf::from(env::var("OUT_DIR").unwrap());
     let include = out_dir.join("vita_headers_localized_include");
-    fs::remove_dir_all(&include)
-        .or_else(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => Ok(()),
-            _ => Err(e),
-        })
-        .unwrap();
 
     localize_bindings(&original_include, &include);
 
@@ -132,7 +126,12 @@ fn localize_bindings(original_include: &Utf8Path, localized_include: &Utf8Path) 
         }
 
         fn localize_dir(&self, original_include: &Utf8Path, local_include: &Utf8Path) {
-            fs::create_dir(local_include).unwrap();
+            fs::create_dir(local_include)
+                .or_else(|e| match e.kind() {
+                    io::ErrorKind::AlreadyExists => Ok(()),
+                    _ => Err(e),
+                })
+                .unwrap();
             for entry in original_include.read_dir_utf8().unwrap() {
                 let entry = entry.unwrap();
                 let local_entry = local_include.join(entry.file_name());
@@ -168,7 +167,16 @@ fn localize_bindings(original_include: &Utf8Path, localized_include: &Utf8Path) 
                     format!("#include \"{path}\"")
                 },
             );
-            fs::write(local_include, new_include.as_ref()).unwrap();
+
+            let changed = match fs::read_to_string(local_include) {
+                Ok(old_include) => old_include != new_include,
+                Err(e) if e.kind() == io::ErrorKind::NotFound => true,
+                Err(e) => panic!("Failed to read old local include `{local_include}`: {e:?}"),
+            };
+
+            if changed {
+                fs::write(local_include, new_include.as_ref()).unwrap();
+            }
         }
     }
 
