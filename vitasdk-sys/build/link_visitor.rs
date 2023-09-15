@@ -17,7 +17,6 @@ pub struct Link {
     /// link.variable[variable_name] = stub_library_name
     variable: HashMap<String, Rc<str>>,
     source_file: PathBuf,
-    link_path_quote: syn::Path,
     pub undefined_functions: Vec<String>,
     pub undefined_variables: Vec<String>,
 }
@@ -27,7 +26,6 @@ impl Link {
         let mut link = Link {
             function: HashMap::new(),
             variable: HashMap::new(),
-            link_path_quote: syn::parse_quote!(link),
             source_file,
             undefined_functions: Vec::new(),
             undefined_variables: Vec::new(),
@@ -125,20 +123,16 @@ impl VisitMut for Link {
                     };
                     set_stub_lib_once(&mut stub_lib_name, candidate, &self.source_file, i);
                 }
-                syn::ForeignItem::Verbatim(ts) => panic!(
-                    "Unexpected syn's verbatim foreign item encountered at \"{}:{}\"",
-                    self.source_file.display(),
-                    ts.span().start().line,
-                ),
                 _ => (),
             }
         }
 
         if let Some(stub_lib_name) = stub_lib_name {
-            i.attrs.iter().find(|a| *a.path() == self.link_path_quote);
-            i.attrs.push(syn::parse_quote! {
-                #[link(name = #stub_lib_name, kind = "static")]
-            });
+            i.attrs.extend([
+                syn::parse_quote!(#[cfg(feature = #stub_lib_name)]),
+                syn::parse_quote!(#[cfg_attr(docsrs, doc(cfg(feature = #stub_lib_name)))]),
+                syn::parse_quote!(#[link(name = #stub_lib_name, kind = "static")]),
+            ]);
         }
 
         syn::visit_mut::visit_item_foreign_mod_mut(self, i);

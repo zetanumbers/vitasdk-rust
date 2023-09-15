@@ -38,8 +38,8 @@ pub struct VitaImportsLib {
     pub kernel: bool,
     pub nid: u32,
     pub version: Option<u32>,
-    #[serde(rename = "functions", default = "HashMap::new")]
+    #[serde(rename = "functions", default)]
     pub function_nids: HashMap<String, u32>,
-    #[serde(rename = "variables", default = "HashMap::new")]
+    #[serde(rename = "variables", default)]
     pub variable_nids: HashMap<String, u32>,
 }
