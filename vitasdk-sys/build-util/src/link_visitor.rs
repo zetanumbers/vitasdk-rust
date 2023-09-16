@@ -37,7 +37,7 @@ impl Link {
         let mut predicate = missing_features_filter();
         if db.stub_lib_names().any(|s| predicate(&s)) {
             panic!("Missing features in vitasdk-sys `Cargo.toml`. \
-                Please run `cargo run -p build-util -- stub-libs --missing-features --as-features` and paste outputed features into vitasdk-sys Cargo.toml")
+                Please run `cargo run -p build-util -- stub-libs --as-features` and replace stub lib features in vitasdk-sys Cargo.toml with outputed ones.")
         }
 
         for imports in db.imports_by_firmware.into_values() {
