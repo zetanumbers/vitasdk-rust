@@ -81,7 +81,6 @@ name = "build-util"
 version = "0.1.0"
 dependencies = [
  "log",
- "proc-macro2",
  "serde",
  "serde_yaml",
  "syn",

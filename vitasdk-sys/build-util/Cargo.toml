@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-link-visitor = ["dep:syn", "dep:proc-macro2"]
+link-visitor = ["dep:syn"]
 
 [dependencies]
 log = "0.4.20"
-proc-macro2 = { version = "1.0.67", optional = true, default-features = false, features = ["span-locations"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_yaml = "0.9.25"
 syn = { version = "2.0.32", optional = true, default-features = false, features = ["parsing", "full", "printing", "visit-mut", "extra-traits"] }

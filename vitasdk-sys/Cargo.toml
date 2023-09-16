@@ -17,6 +17,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+# Defined in vitasdk newlib libc implementation
+vitasdk-utils = []
+
 SceAVConfig_stub = []
 SceAppMgrForDriver_stub = []
 SceAppMgr_stub = []

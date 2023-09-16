@@ -43,7 +43,6 @@ fn main() {
 
     log::info!("Generating preprocessed bindings");
     let bindings = generate_preprocessed_bindings(&include);
-    let bindings_output = out_dir.join("preprocessed_bindings.rs");
 
     log::info!("Parsing preprocessed bindings");
     let mut bindings = syn::parse_file(&bindings).unwrap();
@@ -51,21 +50,8 @@ fn main() {
     let db = vita_headers_submodule.join("db");
 
     log::info!("Loading vita-headers metadata yaml files from \"{db}\"");
-    let mut link = Link::load(db.as_ref(), bindings_output.into());
+    let mut link = Link::load(db.as_ref());
     link.visit_file_mut(&mut bindings);
-
-    if !link.undefined_functions.is_empty() {
-        log::warn!(
-            "Found undefined functions, assuming they're from libc: {:?}",
-            link.undefined_functions
-        );
-    }
-    if !link.undefined_variables.is_empty() {
-        log::warn!(
-            "Found undefined variables, assuming they're from libc: {:?}",
-            link.undefined_variables
-        );
-    }
 
     let bindings = bindings.into_token_stream();
 
