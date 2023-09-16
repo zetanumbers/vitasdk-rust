@@ -1,11 +1,10 @@
 use std::{
-    collections::{hash_map, HashMap},
+    collections::{hash_map, HashMap, HashSet},
     path::{Path, PathBuf},
     rc::Rc,
 };
 
-use crate::vita_headers_db::{stub_lib_name, VitaDb};
-use eyre::Context;
+use crate::vita_headers_db::{missing_features_filter, stub_lib_name, VitaDb};
 use syn::{spanned::Spanned, visit_mut::VisitMut};
 
 pub use syn;
@@ -15,43 +14,57 @@ pub struct Link {
     function: HashMap<String, Rc<str>>,
     /// link.variable[variable_name] = stub_library_name
     variable: HashMap<String, Rc<str>>,
+    stub_libs: HashSet<Rc<str>>,
     source_file: PathBuf,
     pub undefined_functions: Vec<String>,
     pub undefined_variables: Vec<String>,
 }
 
 impl Link {
-    pub fn load(db: &Path, source_file: PathBuf) -> eyre::Result<Self> {
+    pub fn load(db: &Path, source_file: PathBuf) -> Self {
         let mut link = Link {
             function: HashMap::new(),
             variable: HashMap::new(),
+            stub_libs: HashSet::new(),
             source_file,
             undefined_functions: Vec::new(),
             undefined_variables: Vec::new(),
         };
 
-        let mut db = VitaDb::load(db).wrap_err("Loading vita-header db")?;
-        db.remove_conflicting();
-        let missing_features = db.missing_features();
-        if !missing_features.is_empty() {
-            panic!("Missing features in vitasdk-sys `Cargo.toml`. Please run `cargo run -p build-util --bin missing_features` and paste outputed features into vitasdk-sys Cargo.toml")
+        let mut db = VitaDb::load(db);
+        db.split_conflicting();
+
+        let mut predicate = missing_features_filter();
+        if db.stub_lib_names().any(|s| predicate(&s)) {
+            panic!("Missing features in vitasdk-sys `Cargo.toml`. \
+                Please run `cargo run -p build-util -- stub-libs --missing-features --as-features` and paste outputed features into vitasdk-sys Cargo.toml")
         }
 
-        for imports in db.files_by_firmware.into_values().flatten() {
-            let firmware = imports.firmware;
-
+        for imports in db.imports_by_firmware.into_values() {
             for (mod_name, mod_data) in imports.modules {
-                let stub_lib_name = Rc::from(stub_lib_name(&mod_name, &firmware).to_string());
-
-                for (_, lib_data) in mod_data.libraries {
-                    if lib_data.kernel {
+                for (lib_name, lib) in mod_data.libraries {
+                    if lib.kernel {
                         continue;
                     }
 
-                    for (function_name, _) in lib_data.function_nids.into_iter() {
+                    let stub_lib_name = stub_lib_name(
+                        &mod_name,
+                        &lib_name,
+                        lib.stub_name.as_deref(),
+                        lib.kernel,
+                        &imports.firmware,
+                    )
+                    .to_string();
+                    let stub_lib_name = link
+                        .stub_libs
+                        .get(stub_lib_name.as_str())
+                        .cloned()
+                        .unwrap_or_else(|| Rc::from(stub_lib_name));
+
+                    for (function_name, _) in lib.function_nids.into_iter() {
                         match link.function.entry(function_name) {
                             hash_map::Entry::Occupied(entry) => {
-                                eyre::bail!(
+                                panic!(
                                     "`{}` extern function links both to `{}` and `{}`",
                                     entry.key(),
                                     entry.get(),
@@ -64,10 +77,10 @@ impl Link {
                         }
                     }
 
-                    for (variable_name, _) in lib_data.variable_nids.into_iter() {
+                    for (variable_name, _) in lib.variable_nids.into_iter() {
                         match link.variable.entry(variable_name) {
                             hash_map::Entry::Occupied(entry) => {
-                                eyre::bail!(
+                                panic!(
                                     "`{}` extern variable links both to `{}` and `{}`",
                                     entry.key(),
                                     entry.get(),
@@ -79,11 +92,13 @@ impl Link {
                             }
                         }
                     }
+
+                    link.stub_libs.insert(stub_lib_name);
                 }
             }
         }
 
-        Ok(link)
+        link
     }
 }
 
@@ -129,11 +144,22 @@ impl VisitMut for Link {
             i.attrs.extend([
                 syn::parse_quote!(#[cfg(feature = #stub_lib_name)]),
                 syn::parse_quote!(#[cfg_attr(docsrs, doc(cfg(feature = #stub_lib_name)))]),
-                syn::parse_quote!(#[link(name = #stub_lib_name, kind = "static")]),
             ]);
         }
 
         syn::visit_mut::visit_item_foreign_mod_mut(self, i);
+    }
+
+    fn visit_file_mut(&mut self, i: &mut syn::File) {
+        i.items.extend(self.stub_libs.iter().map(|stub_lib_name| {
+            syn::parse_quote! {
+                #[cfg(feature = #stub_lib_name)]
+                #[link(name = #stub_lib_name, kind = "static")]
+                extern "C" {}
+            }
+        }));
+
+        syn::visit_mut::visit_file_mut(self, i);
     }
 }
 

@@ -5,12 +5,10 @@ use build_util::link_visitor::{
     Link,
 };
 use camino::{Utf8Path, Utf8PathBuf};
-use color_eyre::eyre::{self, Context};
 use quote::ToTokens;
 use regex::Regex;
 
-fn main() -> eyre::Result<()> {
-    color_eyre::install()?;
+fn main() {
     env_logger::init();
 
     println!("cargo:rerun-if-env-changed=VITASDK");
@@ -44,16 +42,16 @@ fn main() -> eyre::Result<()> {
     }
 
     log::info!("Generating preprocessed bindings");
-    let bindings = generate_preprocessed_bindings(&include)?;
+    let bindings = generate_preprocessed_bindings(&include);
     let bindings_output = out_dir.join("preprocessed_bindings.rs");
 
     log::info!("Parsing preprocessed bindings");
-    let mut bindings = syn::parse_file(&bindings)?;
+    let mut bindings = syn::parse_file(&bindings).unwrap();
 
     let db = vita_headers_submodule.join("db");
 
     log::info!("Loading vita-headers metadata yaml files from \"{db}\"");
-    let mut link = Link::load(db.as_ref(), bindings_output.into())?;
+    let mut link = Link::load(db.as_ref(), bindings_output.into());
     link.visit_file_mut(&mut bindings);
 
     if !link.undefined_functions.is_empty() {
@@ -71,31 +69,31 @@ fn main() -> eyre::Result<()> {
 
     let bindings = bindings.into_token_stream();
 
-    let bindings_output_path = out_dir.join("bindings.rs");
-    let mut bindings_output = fs::File::create(&bindings_output_path)?;
+    let bindings_output = out_dir.join("bindings.rs");
 
-    log::info!("Writing postprocessed bindings into {bindings_output_path}");
-    use std::io::Write;
-    write!(bindings_output, "{bindings}")?;
+    {
+        log::info!("Writing postprocessed bindings into {bindings_output}");
+        let mut bindings_output = io::BufWriter::new(fs::File::create(&bindings_output).unwrap());
+        use std::io::Write;
+        write!(bindings_output, "{bindings}").unwrap();
+    }
 
     let cargo = env::var_os("CARGO");
     let mut fmt_cmd = process::Command::new(cargo.as_deref().unwrap_or_else(|| "cargo".as_ref()));
     fmt_cmd.args(["fmt", "--"]);
-    fmt_cmd.arg(bindings_output_path);
+    fmt_cmd.arg(bindings_output);
 
     log::info!("Running formatting command: {fmt_cmd:?}");
-    let exit_status = fmt_cmd.status()?;
+    let exit_status = fmt_cmd.status().unwrap();
     assert!(
         exit_status.success(),
         "Formatting command failed with status: {exit_status:?}"
     );
     log::info!("Formatting command finished");
-
-    Ok(())
 }
 
-fn generate_preprocessed_bindings(include: &Utf8Path) -> eyre::Result<String> {
-    Ok(bindgen::Builder::default()
+fn generate_preprocessed_bindings(include: &Utf8Path) -> String {
+    bindgen::Builder::default()
         .header(include.join("vitasdk.h"))
         .clang_args(&["-target", "armv7a-none-eabihf"])
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -106,8 +104,8 @@ fn generate_preprocessed_bindings(include: &Utf8Path) -> eyre::Result<String> {
         .detect_include_paths(false)
         .formatter(bindgen::Formatter::None)
         .generate()
-        .wrap_err("Bindgen failed")?
-        .to_string())
+        .expect("Bindgen failed")
+        .to_string()
 }
 
 // Replace `#include <>` with `#include ""`

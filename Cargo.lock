@@ -80,7 +80,6 @@ checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 name = "build-util"
 version = "0.1.0"
 dependencies = [
- "eyre",
  "log",
  "proc-macro2",
  "serde",
@@ -958,9 +957,7 @@ dependencies = [
  "bindgen",
  "build-util",
  "camino",
- "color-eyre",
  "env_logger",
- "eyre",
  "log",
  "quote",
  "regex",
