@@ -80,7 +80,7 @@ fn main() {
 
 fn generate_preprocessed_bindings(include: &Utf8Path) -> String {
     bindgen::Builder::default()
-        .header(include.join("vitasdk.h"))
+        .header(include.join("all.h"))
         .clang_args(&["-target", "armv7a-none-eabihf"])
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .use_core()

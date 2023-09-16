@@ -26,6 +26,8 @@ Options
 }
 
 fn main() -> ExitCode {
+    env_logger::init();
+
     let cmd = std::env::args().nth(1);
     match cmd.as_deref() {
         Some("stub-libs") => stub_libs(),
