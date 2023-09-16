@@ -36,6 +36,7 @@ fn main() {
 
     localize_bindings(&original_include, &include);
 
+    println!("cargo:rerun-if-changed=src/headers");
     for entry in Utf8Path::new("src/headers").read_dir_utf8().unwrap() {
         let entry = entry.unwrap();
         fs::copy(entry.path(), include.join(entry.file_name())).unwrap();
