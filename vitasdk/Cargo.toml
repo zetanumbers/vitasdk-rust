@@ -1,0 +1,32 @@
+[package]
+name = "vitasdk"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# curl = { git = "https://github.com/alexcrichton/curl-rust.git" }
+vitasdk-sys = { path = "../vitasdk-sys" }
+
+[features]
+sysmem = ["vitasdk-sys/SceSysmem_stub"]
+sysmodule = ["vitasdk-sys/SceSysmodule_stub"]
+display = ["vitasdk-sys/SceDisplay_stub", "sysmem"]
+dmac = ["vitasdk-sys/SceKernelDmacMgr_stub"]
+
+[[example]]
+name = "ferris_gif"
+required-features = ["display", "sysmem", "dmac"]
+
+[dev-dependencies]
+ab_glyph = { version = "0.2.21", default-features = false, features = ["std"] }
+image = { version = "0.24.7", default-features = false, features = ["gif"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.vita]
+title_id = "RUST00001"
+title_name = "Rust Hello World"
+assets = "./static"

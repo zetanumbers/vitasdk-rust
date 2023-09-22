@@ -1,3 +1,3 @@
 [workspace]
-members = ["vitasdk-sys", "vitasdk-sys/build-util", "cargo-vitasdk"]
+members = ["vitasdk-sys", "vitasdk-sys/build-util", "vitasdk", "cargo-vitasdk"]
 resolver = "2"
