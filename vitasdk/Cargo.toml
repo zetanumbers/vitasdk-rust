@@ -20,7 +20,7 @@ name = "ferris_gif"
 required-features = ["display", "sysmem", "dmac"]
 
 [dev-dependencies]
-ab_glyph = { version = "0.2.21", default-features = false, features = ["std"] }
+ab_glyph = { version = "0.2.21", default-features = false, features = ["libm"]}
 image = { version = "0.24.7", default-features = false, features = ["gif"] }
 
 [package.metadata.docs.rs]

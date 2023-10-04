@@ -1,3 +1,5 @@
+#![deny(unsafe_code)]
+
 use std::{fs::File, io, iter, time::Duration};
 
 use ab_glyph::{Font, Glyph, ScaleFont};
