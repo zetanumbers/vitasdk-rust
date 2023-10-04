@@ -1,3 +1,0 @@
-[submodule "vitasdk-sys/vita-headers"]
-	path = vitasdk-sys/vita-headers
-	url = https://github.com/vitasdk/vita-headers
