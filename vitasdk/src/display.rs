@@ -1,4 +1,8 @@
-use std::{mem, os::raw::c_void, ptr, sync::Once};
+use core::{
+    ffi::c_void,
+    mem, ptr,
+    sync::atomic::{self, AtomicBool},
+};
 
 use crate::{
     error::sce_result_unit_from_code,
@@ -11,12 +15,20 @@ pub struct Display {
     current: Option<Framebuf>,
 }
 
+static DISPLAY_TAKEN: AtomicBool = AtomicBool::new(false);
+
 impl Display {
     pub fn take() -> Option<Self> {
-        static ONCE: Once = Once::new();
-        let mut out = None;
-        ONCE.call_once(|| out = Some(Display { current: None }));
-        out
+        let res = DISPLAY_TAKEN.compare_exchange(
+            false,
+            true,
+            atomic::Ordering::Acquire,
+            atomic::Ordering::Relaxed,
+        );
+        match res {
+            Ok(_) => Some(Display { current: None }),
+            Err(_) => None,
+        }
     }
 
     pub fn is_set(&self) -> bool {
@@ -63,6 +75,12 @@ impl Display {
 impl Drop for Display {
     fn drop(&mut self) {
         let _ = self.take_framebuf();
+        let _ = DISPLAY_TAKEN.compare_exchange(
+            true,
+            false,
+            atomic::Ordering::Release,
+            atomic::Ordering::Relaxed,
+        );
     }
 }
 

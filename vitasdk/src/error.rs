@@ -1,4 +1,4 @@
-use std::num::NonZeroI32;
+use core::num::NonZeroI32;
 
 use crate::types::Uid;
 
@@ -39,10 +39,11 @@ impl SceError {
     }
 }
 
-impl std::fmt::Display for SceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SceError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SceError with code {:x}", self.0)
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for SceError {}

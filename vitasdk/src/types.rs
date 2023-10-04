@@ -1,1 +1,1 @@
-pub type Uid = std::num::NonZeroI32;
+pub type Uid = core::num::NonZeroI32;

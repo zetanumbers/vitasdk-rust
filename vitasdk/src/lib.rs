@@ -1,4 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![warn(clippy::std_instead_of_alloc, clippy::std_instead_of_core)]
 
 #[cfg(feature = "display")]
 #[cfg_attr(docsrs, doc(cfg(feature = "display")))]

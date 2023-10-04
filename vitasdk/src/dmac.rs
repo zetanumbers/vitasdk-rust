@@ -1,4 +1,4 @@
-use std::mem;
+use core::mem;
 
 use crate::{error::sce_result_unit_from_code, SceResult};
 

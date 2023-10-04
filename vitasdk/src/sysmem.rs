@@ -1,4 +1,4 @@
-use std::{alloc::Layout, ffi::CStr, mem, ptr};
+use core::{alloc::Layout, ffi::CStr, mem, ptr};
 
 use vitasdk_sys::{
     sceKernelAllocMemBlock, sceKernelFreeMemBlock, sceKernelGetMemBlockBase,
@@ -18,29 +18,29 @@ pub struct MemBlockMut {
 
 impl AsRef<[u8]> for MemBlockMut {
     fn as_ref(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.inner.as_ptr(), self.inner.len()) }
+        unsafe { core::slice::from_raw_parts(self.inner.as_ptr(), self.inner.len()) }
     }
 }
 
 impl AsMut<[u8]> for MemBlockMut {
     fn as_mut(&mut self) -> &mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.len()) }
+        unsafe { core::slice::from_raw_parts_mut(self.inner.as_mut_ptr(), self.inner.len()) }
     }
 }
 
-impl std::borrow::Borrow<[u8]> for MemBlockMut {
+impl core::borrow::Borrow<[u8]> for MemBlockMut {
     fn borrow(&self) -> &[u8] {
         self.as_ref()
     }
 }
 
-impl std::borrow::BorrowMut<[u8]> for MemBlockMut {
+impl core::borrow::BorrowMut<[u8]> for MemBlockMut {
     fn borrow_mut(&mut self) -> &mut [u8] {
         self.as_mut()
     }
 }
 
-impl std::ops::Deref for MemBlockMut {
+impl core::ops::Deref for MemBlockMut {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -48,7 +48,7 @@ impl std::ops::Deref for MemBlockMut {
     }
 }
 
-impl std::ops::DerefMut for MemBlockMut {
+impl core::ops::DerefMut for MemBlockMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut()
     }
@@ -111,29 +111,29 @@ pub struct MemBlockUninitMut {
 
 impl AsRef<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
     fn as_ref(&self) -> &[mem::MaybeUninit<u8>] {
-        unsafe { std::slice::from_raw_parts(self.base.cast(), self.raw.len) }
+        unsafe { core::slice::from_raw_parts(self.base.cast(), self.raw.len) }
     }
 }
 
 impl AsMut<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
     fn as_mut(&mut self) -> &mut [mem::MaybeUninit<u8>] {
-        unsafe { std::slice::from_raw_parts_mut(self.base.cast(), self.raw.len) }
+        unsafe { core::slice::from_raw_parts_mut(self.base.cast(), self.raw.len) }
     }
 }
 
-impl std::borrow::Borrow<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
+impl core::borrow::Borrow<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
     fn borrow(&self) -> &[mem::MaybeUninit<u8>] {
         self.as_ref()
     }
 }
 
-impl std::borrow::BorrowMut<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
+impl core::borrow::BorrowMut<[mem::MaybeUninit<u8>]> for MemBlockUninitMut {
     fn borrow_mut(&mut self) -> &mut [mem::MaybeUninit<u8>] {
         self.as_mut()
     }
 }
 
-impl std::ops::Deref for MemBlockUninitMut {
+impl core::ops::Deref for MemBlockUninitMut {
     type Target = [mem::MaybeUninit<u8>];
 
     fn deref(&self) -> &Self::Target {
@@ -141,7 +141,7 @@ impl std::ops::Deref for MemBlockUninitMut {
     }
 }
 
-impl std::ops::DerefMut for MemBlockUninitMut {
+impl core::ops::DerefMut for MemBlockUninitMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut()
     }
@@ -224,7 +224,7 @@ impl MemBlockUninitMut {
 fn bytes_as_maybe_uninit(slice: &[u8]) -> &[mem::MaybeUninit<u8>] {
     // SAFETY: MaybeUninit
     unsafe {
-        std::slice::from_raw_parts(slice.as_ptr().cast::<mem::MaybeUninit<u8>>(), slice.len())
+        core::slice::from_raw_parts(slice.as_ptr().cast::<mem::MaybeUninit<u8>>(), slice.len())
     }
 }
 

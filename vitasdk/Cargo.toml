@@ -9,6 +9,7 @@ publish = false
 vitasdk-sys = "0.3"
 
 [features]
+std = []
 sysmem = ["vitasdk-sys/SceSysmem_stub"]
 sysmodule = ["vitasdk-sys/SceSysmodule_stub"]
 display = ["vitasdk-sys/SceDisplay_stub", "sysmem"]
