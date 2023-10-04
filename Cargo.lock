@@ -93,18 +93,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 
 [[package]]
-name = "build-util"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "log",
- "serde",
- "serde_yaml",
- "syn",
- "toml",
-]
-
-[[package]]
 name = "bytemuck"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1064,15 +1052,31 @@ dependencies = [
 
 [[package]]
 name = "vitasdk-sys"
-version = "0.0.0"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0174116e5ba8de384969424b4d8ee42b1866649b1e3cfbd6b769baebe259c54c"
 dependencies = [
  "bindgen",
- "build-util",
  "camino",
  "env_logger",
  "log",
  "quote",
  "regex",
+ "vitasdk-sys-build-util",
+]
+
+[[package]]
+name = "vitasdk-sys-build-util"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1147393f4cb866b272d9467cb04f6fa1a9cfb5416d6911cdb465eec714d5dd2c"
+dependencies = [
+ "env_logger",
+ "log",
+ "serde",
+ "serde_yaml",
+ "syn",
+ "toml",
 ]
 
 [[package]]
